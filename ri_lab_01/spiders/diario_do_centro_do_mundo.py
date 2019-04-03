@@ -18,14 +18,17 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
         self.start_urls = list(data.values())
 
     def parse(self, response):
-        #
-        # inclua seu código aqui
-        #
-        page = response.url.split("/")[-2]
-        filename = 'quotes-%s.html' % page
-        with open(filename, 'wb') as f:
-            f.write(response.body)
-        self.log('Saved file %s' % filename)
-        #
-        #
-        #
+        for href in response.css('h3.entry-title > a::attr(href)').getall():
+            yield response.follow(href, self.parse_news)
+    
+    def parse_news(self, response):
+        def extract_with_css(query):
+            return response.css(query).get(default='').strip()
+
+        title = extract_with_css('h1.entry-title::text')
+        author = extract_with_css('div.td-post-author-name > a::text')
+        date =  extract_with_css('time::attr(datetime)')
+        text = response.css('.p1::text, p:not(.donation_paragraph)::text').getall()
+
+        print('%s, %s, %s, \ntext:%s' % (title, author, date, text))
+    
