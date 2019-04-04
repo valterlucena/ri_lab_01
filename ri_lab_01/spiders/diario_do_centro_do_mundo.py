@@ -17,26 +17,48 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
                 data = json.load(json_file)
         self.start_urls = list(data.values())
 
+    '''
+        Function that finds and follows the url for the news at each section page
+    '''
     def parse(self, response):
         for href in response.css('h3.entry-title > a::attr(href)').getall():
             yield response.follow(href, self.parse_news, meta={'url': response.url})
     
+    '''
+        Function that extracts and formats the scraped data
+    '''
     def parse_news(self, response):
+
+        '''
+            Auxiliary function that returns the data from a single occurrence of the query args
+        '''
         def extract_with_css(query):
             return response.css(query).get()
         
+        '''
+            Auxiliary function that returns the data from all occurrences of the query args
+        '''
         def extract_with_css_all(query):
             return response.css(query).getall()
 
+        '''
+            Auxiliary function that returns an article's datetime
+        '''
         def extract_date(query):
             extracted = extract_with_css(query).split('T')
             date = '/'.join(extracted[0].split('-')[::-1])
             time = extracted[-1].split('+')[0]
             return date + ' ' + time
 
+        '''
+            Auxiliary function that returns the article's section
+        '''
         def extract_section():
             return response.meta['url'].split('/')[-2],
 
+        '''
+            Auxiliary function that extracts and formats an article's text
+        '''
         def extract_text(query):
             extracted = extract_with_css_all(query)
             return ' '.join(extracted)
