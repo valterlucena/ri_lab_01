@@ -19,16 +19,36 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
 
     def parse(self, response):
         for href in response.css('h3.entry-title > a::attr(href)').getall():
-            yield response.follow(href, self.parse_news)
+            yield response.follow(href, self.parse_news, meta={'url': response.url})
     
     def parse_news(self, response):
         def extract_with_css(query):
-            return response.css(query).get(default='').strip()
+            return response.css(query).get()
+        
+        def extract_with_css_all(query):
+            return response.css(query).getall()
 
-        title = extract_with_css('h1.entry-title::text')
-        author = extract_with_css('div.td-post-author-name > a::text')
-        date =  extract_with_css('time::attr(datetime)')
-        text = response.css('.p1::text, p:not(.donation_paragraph)::text').getall()
+        def extract_date(query):
+            extracted = extract_with_css(query).split('T')
+            date = '/'.join(extracted[0].split('-')[::-1])
+            time = extracted[-1].split('+')[0]
+            return date + ' ' + time
 
-        print('%s, %s, %s, \ntext:%s' % (title, author, date, text))
+        def extract_section():
+            return response.meta['url'].split('/')[-2],
+
+        def extract_text(query):
+            extracted = extract_with_css_all(query)
+            return ' '.join(extracted)
+
+        yield {
+            'title': extract_with_css('h1.entry-title::text'),
+            'subtitle': '',
+            'author': extract_with_css('div.td-post-author-name > a::text'),
+            'date': extract_date('time::attr(datetime)'),
+            'section': extract_section(),
+            'text': extract_text('.p1::text, .s1::text, div._2cuy::text, p:not(.donation_paragraph)::text'),
+            'url': response.url
+        }
+        
     
