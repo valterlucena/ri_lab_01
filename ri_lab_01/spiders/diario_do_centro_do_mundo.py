@@ -10,12 +10,15 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
     name = 'diario_do_centro_do_mundo'
     allowed_domains = ['diariodocentrodomundo.com.br']
     start_urls = []
+    sections = []
+    id = 0
 
     def __init__(self, *a, **kw):
         super(DiarioDoCentroDoMundoSpider, self).__init__(*a, **kw)
         with open('seeds/diario_do_centro_do_mundo.json') as json_file:
                 data = json.load(json_file)
         self.start_urls = list(data.values())
+        self.sections = [url.split('/')[-2] for url in list(data.values())]
 
     '''
         Function that finds and follows the url for the news at each section page
@@ -54,7 +57,8 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
             Auxiliary function that returns the article's section
         '''
         def extract_section():
-            return response.meta['url'].split('/')[-2],
+            section = response.meta['url'].split('/')[-2]
+            return section if section in self.sections else ''
 
         '''
             Auxiliary function that extracts and formats an article's text
@@ -62,6 +66,8 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
         def extract_text(query):
             extracted = extract_with_css_all(query)
             return ' '.join(extracted)
+
+        self.id += 1
 
         yield {
             'title': extract_with_css('h1.entry-title::text'),
@@ -73,4 +79,7 @@ class DiarioDoCentroDoMundoSpider(scrapy.Spider):
             'url': response.url
         }
         
+        if self.id < 120:
+            next_article = extract_with_css('.td-post-next-prev-content > a::attr(href)')
+            yield response.follow(next_article, self.parse_news, meta={'url': response.url})
     
